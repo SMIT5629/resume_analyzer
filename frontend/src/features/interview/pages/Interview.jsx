@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import '../styles/interview.scss'
 import { useInterview } from '../hooks/useInterview.js'
-import { useNavigate, useParams } from 'react-router'
-
+import {useParams } from 'react-router'
+import Loading from "../../shared/components/Loading"
 
 
 const NAV_ITEMS = [
@@ -72,9 +72,7 @@ const Interview = () => {
 
     if (loading || !report) {
         return (
-            <main className='loading-screen'>
-                <h1>Loading your interview plan...</h1>
-            </main>
+            <Loading/>
         )
     }
 
@@ -84,7 +82,8 @@ const Interview = () => {
 
 
     return (
-        <div className='interview-page'>
+        <div> 
+             <div className='interview-page'>
             <div className='interview-layout'>
 
                 {/* ── Left Nav ── */}
@@ -188,7 +187,10 @@ const Interview = () => {
 
                 </aside>
             </div>
+            
         </div>
+</div>
+      
     )
 }
 

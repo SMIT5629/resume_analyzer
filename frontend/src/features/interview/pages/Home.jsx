@@ -1,10 +1,14 @@
-import React, { useState ,useRef} from 'react'
+import React, { useState ,useRef,useEffect} from 'react'
 import "../styles/home.scss"
 import { useInterview } from '../hooks/useInterview';
 import { useNavigate } from 'react-router';
+import Loading from "../../shared/components/Loading";
+import { useAuth } from "../../auth/hooks/useAuth.js";
 
 function Home() {
-    const { loading, generateReport,reports} = useInterview()
+    const { loading, generateReport,reports,getReports} = useInterview()
+
+    const { handleLogout } = useAuth();
 
     const [jobDescription, setJobDescription] = useState("");
     const [selfDescription, setSelfDescription] = useState("");
@@ -12,6 +16,9 @@ function Home() {
     const resumeInputRef = useRef()
 
     const navigate = useNavigate()
+    useEffect(() => {
+        getReports()
+    }, []) 
 
     const handleGenerateReport = async ()=>{
         const resumeFile = resumeInputRef.current.files[0]
@@ -22,17 +29,24 @@ function Home() {
 
     if (loading) {
         return(
-            <main><h1>Loading Your Interview Plan ...</h1></main>
+           <Loading/>
         )
     }
     return (
         <main className='home'>
             <div className="container">
-                {/* HEADER */}
-                <div className="header">
-                    <h1>Create Your Custom <span className="highlight">Interview Plan</span></h1>
-                    <p className="subtitle">Let our AI analyze the job requirements and your unique profile to build a winning strategy.</p>
-                </div>
+             <div className="header">
+    <div className="header-content">
+        <h1>
+            Create Your Custom <span className="highlight">Interview Plan</span>
+        </h1>
+        <p className="subtitle">
+            Let our AI analyze the job requirements and your unique profile to build a winning strategy.
+        </p>
+    </div>
+
+    <button className="logout-btn" onClick={handleLogout}>Logout</button>
+</div>
 
                 {/* CARD */}
                 <div className="card">
@@ -103,9 +117,10 @@ function Home() {
                         </button>
 
                     </div>
+                </div>  
 
-                </div>  {/* Recent Reports List */}
-            {reports.length > 0 && (
+                {/* Recent Reports List */}
+                <div className="reports-container">  {reports.length > 0 && (
                 <section className='recent-reports'>
                     <h2>My Recent Interview Plans</h2>
                     <ul className='reports-list'>
@@ -119,6 +134,17 @@ function Home() {
                     </ul>
                 </section>
             )}
+            </div>
+          <footer className="home-footer">
+  <div className="footer-content">
+    <p>© {new Date().getFullYear()} Interview AI</p>
+    <div className="footer-links">
+      <span>Privacy</span>
+      <span>Terms</span>
+      <span>Contact</span>
+    </div>
+  </div>
+</footer>
             </div>
            
         </main>

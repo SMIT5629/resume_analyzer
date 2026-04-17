@@ -1,0 +1,61 @@
+
+/* ===== STEPS LOADING ===== */
+.loading-screen {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #eef2ff, #f8fafc);
+}
+
+.loading-box {
+  text-align: center;
+  width: 100%;
+  max-width: 500px;
+}
+
+.steps {
+  margin-top: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+
+.step.active {
+  opacity: 1;
+  font-weight: 600;
+}
+
+.step.completed {
+  opacity: 1;
+  color: #4f46e5;
+}
+
+.circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.step.active .circle {
+  background: #4f46e5;
+  color: white;
+}
+
+.step.completed .circle {
+  background: #22c55e;
+  color: white;
+}
