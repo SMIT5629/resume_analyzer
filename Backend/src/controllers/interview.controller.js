@@ -62,8 +62,7 @@ async function getAllInterviewReportsController(req, res) {
 //generate resume pdf
 async function generateResumePdfController(req, res) {
     try {
-        // ✅ FIX: get from body instead of params
-        const { interviewReportId } = req.body;
+        const { interviewReportId } =req.params;
 
         if (!interviewReportId) {
             return res.status(400).json({
