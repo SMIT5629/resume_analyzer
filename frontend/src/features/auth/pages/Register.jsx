@@ -4,6 +4,7 @@ import "../auth.form.scss"
 import { useAuth } from '../hooks/useAuth';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import Loading from '../../shared/components/Loading';
 
 function Register() {
 
@@ -22,9 +23,7 @@ function Register() {
     }
     if (loading) {
         return (
-            <main>
-                <h1>Loading</h1>
-            </main>
+           <Loading/>
         )
     }
     return (

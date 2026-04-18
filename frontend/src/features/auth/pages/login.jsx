@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import Loading from "../../shared/components/Loading"
 
 function Login() {
 
@@ -21,9 +22,7 @@ function Login() {
     }
     if (loading) {
         return (
-            <main>
-                <h1>Loading</h1>
-            </main>
+           <Loading/>
         )
     }
     return (
