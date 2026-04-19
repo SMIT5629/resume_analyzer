@@ -121,8 +121,21 @@ async function generateResumePdf({ resume, selfDescription, jobDescription }) {
         }
     })
 
+    // Extract JSON from response, handling markdown code blocks and other formatting
+    let jsonText = response.text.trim()
+    
+    // Remove markdown code block if present
+    if (jsonText.startsWith('```')) {
+        jsonText = jsonText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '')
+    }
+    
+    // Remove any leading markdown headers or text before the JSON object
+    const jsonMatch = jsonText.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+        jsonText = jsonMatch[0]
+    }
 
-    const jsonContent = JSON.parse(response.text)
+    const jsonContent = JSON.parse(jsonText)
 
     const pdfBuffer = await generatePdfFromHtml(jsonContent.html)
 
