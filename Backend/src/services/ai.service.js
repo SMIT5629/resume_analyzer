@@ -72,25 +72,41 @@ IMPORTANT: Return ONLY valid JSON object, no markdown, no code blocks, no explan
 
 
 async function generatePdfFromHtml(htmlContent) {
-    const browser = await puppeteer.launch({
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    headless: true
-});
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: "networkidle0" })
+    let browser;
+    try {
+        console.log("[Puppeteer] Launching browser...");
+        browser = await puppeteer.launch({
+            args: ["--no-sandbox", "--disable-setuid-sandbox"],
+            headless: true
+        });
+        
+        console.log("[Puppeteer] Creating new page...");
+        const page = await browser.newPage();
+        
+        console.log("[Puppeteer] Setting page content...");
+        await page.setContent(htmlContent, { waitUntil: "networkidle2" })
 
-    const pdfBuffer = await page.pdf({
-        format: "A4", margin: {
-            top: "15mm",
-            bottom: "15mm",
-            left: "10mm",
-            right: "10mm"
+        console.log("[Puppeteer] Generating PDF...");
+        const pdfBuffer = await page.pdf({
+            format: "A4", margin: {
+                top: "15mm",
+                bottom: "15mm",
+                left: "10mm",
+                right: "10mm"
+            }
+        })
+
+        console.log("[Puppeteer] PDF generated, closing browser...");
+        await browser.close()
+
+        return pdfBuffer
+    } catch (error) {
+        console.error("[Puppeteer] Error:", error.message);
+        if (browser) {
+            await browser.close().catch(() => {});
         }
-    })
-
-    await browser.close()
-
-    return pdfBuffer
+        throw error;
+    }
 }
 
 async function generateResumePdf({ resume, selfDescription, jobDescription }) {
