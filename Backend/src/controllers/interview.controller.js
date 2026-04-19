@@ -62,7 +62,7 @@ async function getAllInterviewReportsController(req, res) {
 //generate resume pdf
 async function generateResumePdfController(req, res) {
     try {
-        const { interviewReportId } =req.params;
+        const { interviewReportId } = req.params;
 
         if (!interviewReportId) {
             return res.status(400).json({
@@ -87,11 +87,15 @@ async function generateResumePdfController(req, res) {
             });
         }
 
+        console.log("[PDF] Generating resume PDF for interviewReportId:", interviewReportId);
+
         const pdfBuffer = await generateResumePdf({
             resume,
             jobDescription,
             selfDescription
         });
+
+        console.log("[PDF] PDF generated successfully, size:", pdfBuffer.length);
 
         res.set({
             "Content-Type": "application/pdf",
@@ -101,11 +105,13 @@ async function generateResumePdfController(req, res) {
         res.send(pdfBuffer);
 
     } catch (error) {
-        console.error("PDF generation error:", error);
+        console.error("[PDF] Generation error:", error.message);
+        console.error("[PDF] Full error:", error);
 
         res.status(500).json({
             message: "Failed to generate PDF",
-            error: error.message
+            error: error.message,
+            stack: process.env.NODE_ENV === "development" ? error.stack : undefined
         });
     }
 }
