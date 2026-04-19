@@ -22,7 +22,7 @@ const interviewReportSchema = z.object({
     })).describe("Behavioral questions that can be asked in the interview along with their intention and how to answer them"),
     skillGaps: z.array(z.object({
         skill: z.string().describe("The skill which the candidate is lacking"),
-        severity: z.enum([ "low", "medium", "high" ]).describe("The severity of this skill gap, i.e. how important is this skill for the job and how much it can impact the candidate's chances")
+        severity: z.enum(["low", "medium", "high"]).describe("The severity of this skill gap, i.e. how important is this skill for the job and how much it can impact the candidate's chances")
     })).describe("List of skill gaps in the candidate's profile along with their severity"),
     preparationPlan: z.array(z.object({
         day: z.number().describe("The day number in the preparation plan, starting from 1"),
@@ -52,18 +52,18 @@ IMPORTANT: Return ONLY valid JSON object, no markdown, no code blocks, no explan
 
     // Extract JSON from response, handling markdown code blocks and other formatting
     let jsonText = response.text.trim()
-    
+
     // Remove markdown code block if present
     if (jsonText.startsWith('```')) {
         jsonText = jsonText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '')
     }
-    
+
     // Remove any leading markdown headers or text before the JSON object
     const jsonMatch = jsonText.match(/\{[\s\S]*\}/)
     if (jsonMatch) {
         jsonText = jsonMatch[0]
     }
-    
+
     return JSON.parse(jsonText)
 
 
@@ -73,9 +73,9 @@ IMPORTANT: Return ONLY valid JSON object, no markdown, no code blocks, no explan
 
 async function generatePdfFromHtml(htmlContent) {
     const browser = await puppeteer.launch({
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    headless: true
-});
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        headless: true
+    });
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: "networkidle0" })
 
@@ -122,7 +122,20 @@ async function generateResumePdf({ resume, selfDescription, jobDescription }) {
     })
 
 
-    const jsonContent = JSON.parse(response.text)
+    let jsonText = response.text.trim()
+
+    // Remove markdown code block if present
+    if (jsonText.startsWith('```')) {
+        jsonText = jsonText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '')
+    }
+
+    // Remove any leading markdown headers or text before the JSON object
+    const jsonMatch = jsonText.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+        jsonText = jsonMatch[0]
+    }
+
+    const jsonContent = JSON.parse(jsonText)
 
     const pdfBuffer = await generatePdfFromHtml(jsonContent.html)
 
