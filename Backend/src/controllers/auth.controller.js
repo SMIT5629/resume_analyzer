@@ -19,7 +19,7 @@ async function registerUserController(req, res) {
     }
 
     const isUserAlreadyExists = await userModel.findOne({
-        $or: [ { username }, { email } ]
+        $or: [{ username }, { email }]
     })
 
     if (isUserAlreadyExists) {
@@ -43,11 +43,11 @@ async function registerUserController(req, res) {
     )
 
     res.cookie("token", token, {
-    httpOnly: true,
-    secure: true,        //required for HTTPS (production)
-    sameSite: "none",    // required for cross-origin (Vercel ↔ Render)
-    maxAge: 24 * 60 * 60 * 1000 // optional (1 day)
-})
+        httpOnly: true,
+        secure: true,        //required for HTTPS (production)
+        sameSite: "none",    // required for cross-origin (Vercel ↔ Render)
+        maxAge: 24 * 60 * 60 * 1000 // optional (1 day)
+    })
 
     res.status(201).json({
         message: "User registered successfully",
@@ -93,11 +93,11 @@ async function loginUserController(req, res) {
     )
 
     res.cookie("token", token, {
-    httpOnly: true,
-    secure: true,        //required for HTTPS (production)
-    sameSite: "none",    // required for cross-origin (Vercel ↔ Render)
-    maxAge: 24 * 60 * 60 * 1000 // optional (1 day)
-})
+        httpOnly: true,
+        secure: true,        //required for HTTPS (production)
+        sameSite: "none",    // required for cross-origin (Vercel ↔ Render)
+        maxAge: 24 * 60 * 60 * 1000 // optional (1 day)
+    })
     res.status(200).json({
         message: "User loggedIn successfully.",
         user: {

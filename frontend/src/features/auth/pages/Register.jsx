@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import Loading from '../../shared/components/Loading';
+import { toast } from "react-toastify";
 
 function Register() {
 
@@ -17,13 +18,18 @@ function Register() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        await handleRegister({ username, email, password })
-        nevigate("/")
+        try {
+            await handleRegister({ username, email, password })
+            nevigate("/")
+        } catch (err) {
+            toast.error(err.response?.data?.message ||
+                err.message || "Something went wrong")
+        }
 
     }
     if (loading) {
         return (
-           <Loading/>
+            <Loading />
         )
     }
     return (

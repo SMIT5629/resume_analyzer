@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import Loading from "../../shared/components/Loading"
+import { toast } from "react-toastify";
 
 function Login() {
 
@@ -16,13 +17,17 @@ function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        await handleLogin({ email, password })
-        nevigate("/")
-
+        try {
+            await handleLogin({ email, password })
+            nevigate("/")
+        } catch (err) {
+            toast.error(err.response?.data?.message ||
+                err.message || "Something went wrong")
+        }
     }
     if (loading) {
         return (
-           <Loading/>
+            <Loading />
         )
     }
     return (
