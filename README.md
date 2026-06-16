@@ -1,5 +1,8 @@
-## Application Preview
+# Resume Analyzer
 
+### AI-powered resume analysis platform that helps candidates improve their resumes through ATS scoring, skill gap detection, and personalized feedback.
+
+## Application Preview
 ### Authentication
 
 | Sign In                                                                                      | Sign Up                                                                                      |
