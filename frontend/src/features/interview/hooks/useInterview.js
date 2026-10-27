@@ -1,5 +1,5 @@
 import { generateInterviewReport, generateResumePdf, getAllInterviewReports, getInterviewReportById } from "../services/interview.api"
-import { useContext } from "react"
+import { useContext, useState } from "react"
 import { InterviewContext } from "../interview.context"
 
 export const useInterview = () => {
@@ -52,23 +52,55 @@ export const useInterview = () => {
         }
     }
 
-    const getResumePdf = async (interviewReportId) => {
+    const [downloadingResume, setDownloadingResume] = useState(false)
+
+    const getResumePdf = async (interviewReportId, reportTitle) => {
+        setDownloadingResume(true)
         try {
             const pdfBlob = await generateResumePdf({ interviewReportId })
-            // Create a blob URL and trigger download
-            const url = window.URL.createObjectURL(pdfBlob)
+
+            // Validate that we got a valid PDF blob
+            if (pdfBlob.type === "application/json" || pdfBlob.size < 300) {
+                const text = await pdfBlob.text()
+                try {
+                    const json = JSON.parse(text)
+                    if (json.message) {
+                        throw new Error(json.message)
+                    }
+                } catch {
+                    // not json
+                }
+            }
+
+            const url = window.URL.createObjectURL(new Blob([pdfBlob], { type: "application/pdf" }))
             const link = document.createElement('a')
             link.href = url
-            link.setAttribute('download', `resume_${interviewReportId}.pdf`)
+            const safeName = reportTitle ? reportTitle.replace(/[^a-zA-Z0-9_-]/g, "_") : `resume_${interviewReportId}`
+            link.setAttribute('download', `${safeName}.pdf`)
             document.body.appendChild(link)
             link.click()
             document.body.removeChild(link)
-            window.URL.revokeObjectURL(url)
+            setTimeout(() => window.URL.revokeObjectURL(url), 1500)
+            return true
         } catch (error) {
             console.error("Error downloading resume PDF:", error)
+            if (error.response?.data instanceof Blob) {
+                try {
+                    const text = await error.response.data.text()
+                    const parsed = JSON.parse(text)
+                    const parsedError = new Error(parsed.message || "Server error while generating PDF")
+                    throw parsedError
+                } catch (parseErr) {
+                    if (parseErr.message && !parseErr.message.includes("JSON")) {
+                        throw parseErr
+                    }
+                }
+            }
             throw error
+        } finally {
+            setDownloadingResume(false)
         }
     }
 
-    return { loading, report, reports, generateReport, getReportById, getReports, getResumePdf }
+    return { loading, downloadingResume, report, reports, generateReport, getReportById, getReports, getResumePdf }
 }

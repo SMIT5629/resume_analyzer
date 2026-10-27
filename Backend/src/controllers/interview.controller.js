@@ -5,29 +5,65 @@ const interviewReportModel = require("../models/interviewReport.model")
 
 //generate report
 async function generateInterViewReportController(req, res) {
+    try {
+        let resumeText = ""
 
-    const resumeContent = await (new pdfParse.PDFParse(Uint8Array.from(req.file.buffer))).getText()
-    const { selfDescription, jobDescription } = req.body
+        if (req.file && req.file.buffer) {
+            try {
+                const parsed = await (new pdfParse.PDFParse(Uint8Array.from(req.file.buffer))).getText()
+                resumeText = parsed.text || ""
+            } catch (err) {
+                console.warn("[PDF Parse] PDFParse class failed, attempting fallback:", err.message)
+                try {
+                    if (typeof pdfParse === "function") {
+                        const parsed = await pdfParse(req.file.buffer)
+                        resumeText = parsed.text || ""
+                    }
+                } catch (fallbackErr) {
+                    console.error("[PDF Parse] Both parsing methods failed:", fallbackErr.message)
+                }
+            }
+        }
 
-    const interViewReportByAi = await generateInterviewReport({
-        resume: resumeContent.text,
-        selfDescription,
-        jobDescription
-    })
+        const { selfDescription = "", jobDescription } = req.body
 
-    const interviewReport = await interviewReportModel.create({
-        user: req.user.id,
-        resume: resumeContent.text,
-        selfDescription,
-        jobDescription,
-        ...interViewReportByAi
-    })
+        if (!jobDescription) {
+            return res.status(400).json({
+                message: "Job description is required."
+            })
+        }
 
-    res.status(201).json({
-        message: "Interview report generated successfully.",
-        interviewReport
-    })
+        if (!resumeText && !selfDescription) {
+            return res.status(400).json({
+                message: "Please provide either a resume file or a quick self-description."
+            })
+        }
 
+        const interViewReportByAi = await generateInterviewReport({
+            resume: resumeText,
+            selfDescription,
+            jobDescription
+        })
+
+        const interviewReport = await interviewReportModel.create({
+            user: req.user.id,
+            resume: resumeText,
+            selfDescription,
+            jobDescription,
+            ...interViewReportByAi
+        })
+
+        res.status(201).json({
+            message: "Interview report generated successfully.",
+            interviewReport
+        })
+    } catch (error) {
+        console.error("Report generation error:", error)
+        res.status(500).json({
+            message: "Failed to generate interview report",
+            error: error.message
+        })
+    }
 }
 
 //get report by id
@@ -70,7 +106,14 @@ async function generateResumePdfController(req, res) {
             });
         }
 
-        const interviewReport = await interviewReportModel.findById(interviewReportId);
+        let interviewReport = await interviewReportModel.findOne({
+            _id: interviewReportId,
+            user: req.user.id
+        });
+
+        if (!interviewReport) {
+            interviewReport = await interviewReportModel.findById(interviewReportId);
+        }
 
         if (!interviewReport) {
             return res.status(404).json({
@@ -78,38 +121,38 @@ async function generateResumePdfController(req, res) {
             });
         }
 
-        const { resume, jobDescription, selfDescription } = interviewReport;
+        const { resume, jobDescription, selfDescription, title } = interviewReport;
 
-        // ✅ Validate required data
-        if (!resume || !jobDescription || !selfDescription) {
+        // Either resume or selfDescription is needed along with jobDescription
+        if (!jobDescription || (!resume && !selfDescription)) {
             return res.status(400).json({
-                message: "Missing data required for PDF generation"
+                message: "Profile details (resume or self-description) and target job description are required for resume generation"
             });
         }
 
         console.log("[PDF] Generating resume PDF for interviewReportId:", interviewReportId);
 
         const pdfBuffer = await generateResumePdf({
-            resume,
+            resume: resume || "",
             jobDescription,
-            selfDescription
+            selfDescription: selfDescription || "",
+            title: title || "Professional Resume"
         });
 
         console.log("[PDF] PDF generated successfully, size:", pdfBuffer.length);
 
-        res.set({
-            "Content-Type": "application/pdf",
-            "Content-Disposition": `attachment; filename=resume_${interviewReportId}.pdf`
-        });
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="resume_${interviewReportId}.pdf"`);
+        res.setHeader("Content-Length", pdfBuffer.length);
 
-        res.send(pdfBuffer);
+        return res.end(pdfBuffer);
 
     } catch (error) {
         console.error("[PDF] Generation error:", error.message);
         console.error("[PDF] Full error:", error);
 
-        res.status(500).json({
-            message: "Failed to generate PDF",
+        return res.status(500).json({
+            message: "Failed to generate PDF. " + (error.message || ""),
             error: error.message,
             stack: process.env.NODE_ENV === "development" ? error.stack : undefined
         });

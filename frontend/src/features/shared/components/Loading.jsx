@@ -1,51 +1,91 @@
-export default function Loading() {
+import React from 'react'
+
+export default function Loading({ message = "AI is analyzing requirements & building strategy..." }) {
   return (
-    <div className="loader-wrapper">
-      <div className="loader">
-        {[...Array(8)].map((_, i) => (
-          <span key={i} style={{ "--i": i }}></span>
-        ))}
+    <div className="app-loader-wrapper">
+      <div className="app-loader-card">
+        <div className="app-spinner-ring">
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
+        <p className="app-loader-text">{message}</p>
+        <span className="app-loader-sub">This usually takes 5-15 seconds</span>
       </div>
 
-      <style jsx>{`
-        .loader-wrapper {
+      <style>{`
+        .app-loader-wrapper {
           position: fixed;
-          inset: 0; /* full screen */
+          inset: 0;
           display: flex;
           justify-content: center;
           align-items: center;
-          background: transparent; /* important */
+          background: rgba(10, 13, 20, 0.75);
+          backdrop-filter: blur(8px);
           z-index: 9999;
+          animation: fadeIn 0.2s ease-out;
         }
 
-        .loader {
+        .app-loader-card {
+          background: #111726;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 32px 40px;
+          border-radius: 18px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 14px;
+          box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+          max-width: 360px;
+          text-align: center;
+        }
+
+        .app-spinner-ring {
+          display: inline-block;
           position: relative;
-          width: 60px;
-          height: 60px;
+          width: 54px;
+          height: 54px;
         }
 
-        .loader span {
+        .app-spinner-ring div {
+          box-sizing: border-box;
+          display: block;
           position: absolute;
-          width: 8px;
-          height: 8px;
-          background: #555;
+          width: 44px;
+          height: 44px;
+          margin: 5px;
+          border: 4px solid #f43f5e;
           border-radius: 50%;
-          top: 50%;
-          left: 50%;
-          transform: rotate(calc(45deg * var(--i)))
-            translate(25px);
-          opacity: 0.2;
-          animation: fade 1.2s linear infinite;
-          animation-delay: calc(0.15s * var(--i));
+          animation: ringSpin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+          border-color: #f43f5e transparent transparent transparent;
         }
 
-        @keyframes fade {
-          0% {
-            opacity: 1;
-          }
-          100% {
-            opacity: 0.2;
-          }
+        .app-spinner-ring div:nth-child(1) { animation-delay: -0.45s; }
+        .app-spinner-ring div:nth-child(2) { animation-delay: -0.3s; }
+        .app-spinner-ring div:nth-child(3) { animation-delay: -0.15s; }
+
+        .app-loader-text {
+          color: #f8fafc;
+          font-size: 14px;
+          font-weight: 600;
+          margin: 0;
+          line-height: 1.5;
+        }
+
+        .app-loader-sub {
+          color: #64748b;
+          font-size: 12px;
+        }
+
+        @keyframes ringSpin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.96); }
+          to { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>

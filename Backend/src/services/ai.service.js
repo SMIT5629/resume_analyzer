@@ -73,12 +73,19 @@ IMPORTANT: Return ONLY valid JSON object, no markdown, no code blocks, no explan
 
 let browser;
 
-// Reuse browser
+// Reuse browser with proper connection check and optimized flags
 async function getBrowser() {
-    if (!browser) {
+    if (!browser || !browser.connected) {
         browser = await puppeteer.launch({
-            headless: "new",
-            args: ["--no-sandbox", "--disable-setuid-sandbox"]
+            headless: true,
+            args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--no-first-run",
+                "--no-zygote"
+            ]
         });
     }
     return browser;
@@ -86,6 +93,7 @@ async function getBrowser() {
 
 // Stronger sanitization
 function sanitizeHtml(html) {
+    if (!html) return "";
     return html
         .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
         .replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, "")
@@ -93,17 +101,105 @@ function sanitizeHtml(html) {
         .replace(/javascript:/gi, "");
 }
 
-// Extract JSON even if model messes up
-function extractJson(text) {
+// Extract HTML or JSON even if model response has formatting
+function extractResumeHtml(text) {
+    if (!text) return "";
+
+    // 1. If text is already a full HTML document or fragment
+    if (text.includes("<!DOCTYPE html>") || text.includes("<html") || (text.includes("<body") && text.includes("</body>"))) {
+        const clean = text.replace(/^```(?:html)?\n?/i, "").replace(/\n?```$/i, "");
+        return clean;
+    }
+
+    // 2. Try parsing as JSON
     try {
-        return JSON.parse(text);
+        const parsed = JSON.parse(text);
+        if (parsed.html) return parsed.html;
     } catch {
+        // Try regex match for JSON object
         const match = text.match(/\{[\s\S]*\}/);
         if (match) {
-            return JSON.parse(match[0]);
+            try {
+                const parsed = JSON.parse(match[0]);
+                if (parsed.html) return parsed.html;
+            } catch {
+                // Try extracting html property content directly via regex
+                const htmlPropMatch = match[0].match(/"html"\s*:\s*"([\s\S]*?)(?:"\s*\}|"$)/);
+                if (htmlPropMatch && htmlPropMatch[1]) {
+                    // Unescape quotes and newlines
+                    return htmlPropMatch[1]
+                        .replace(/\\"/g, '"')
+                        .replace(/\\n/g, "\n")
+                        .replace(/\\t/g, "\t")
+                        .replace(/\\\\/g, "\\");
+                }
+            }
         }
-        throw new Error("No valid JSON found in AI response");
     }
+
+    // 3. Fallback: extract any HTML between tags or strip markdown fences
+    const stripped = text.replace(/^```(?:json|html)?\n?/i, "").replace(/\n?```$/i, "");
+    if (stripped.includes("<") && stripped.includes(">")) {
+        return stripped;
+    }
+
+    return "";
+}
+
+function buildFallbackResumeHtml({ resume, selfDescription, jobDescription, title }) {
+    const candidateInfo = (resume || selfDescription || "Candidate").slice(0, 3000);
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page { margin: 15mm; size: A4; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; line-height: 1.5; font-size: 13px; margin: 0; padding: 0; }
+    .header { border-bottom: 2px solid #0284c7; padding-bottom: 12px; margin-bottom: 16px; }
+    h1 { font-size: 24px; margin: 0 0 4px 0; color: #0f172a; }
+    .title { font-size: 15px; color: #0284c7; font-weight: 600; margin-bottom: 6px; }
+    .section-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.8px; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 16px 0 8px 0; font-weight: 700; }
+    p { margin: 0 0 8px 0; }
+    .content-box { white-space: pre-wrap; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-size: 12px; color: #334155; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${title || "Professional Profile"}</h1>
+    <div class="title">Tailored Candidate Resume</div>
+  </div>
+  <div class="section-title">Target Role & Opportunity</div>
+  <p><strong>Target Position:</strong> ${title || "Target Role"}</p>
+  <div class="section-title">Candidate Profile & Highlights</div>
+  <div class="content-box">${candidateInfo}</div>
+</body>
+</html>`;
+}
+
+function ensureCompleteHtmlDocument(html, title) {
+    if (!html.includes("<!DOCTYPE html>") && !html.includes("<html")) {
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${title || "Resume"}</title>
+  <style>
+    @page { margin: 15mm; size: A4; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.5; font-size: 13px; margin: 0; padding: 0; }
+    h1 { font-size: 22px; color: #0f172a; margin: 0 0 6px 0; }
+    h2 { font-size: 14px; color: #0f172a; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 4px; margin: 14px 0 6px 0; text-transform: uppercase; letter-spacing: 0.5px; }
+    h3 { font-size: 13px; color: #334155; margin: 6px 0 2px 0; }
+    p { margin: 0 0 6px 0; }
+    ul { margin: 4px 0 8px 18px; padding: 0; }
+    li { margin-bottom: 3px; }
+  </style>
+</head>
+<body>
+  ${html}
+</body>
+</html>`;
+    }
+    return html;
 }
 
 async function generatePdfFromHtml(htmlContent) {
@@ -113,58 +209,66 @@ async function generatePdfFromHtml(htmlContent) {
     try {
         await page.setJavaScriptEnabled(false);
 
+        // domcontentloaded prevents getting stuck on external web fonts or unresolvable assets
         await page.setContent(htmlContent, {
-            waitUntil: "networkidle0",
-            timeout: 30000
+            waitUntil: ["domcontentloaded", "load"],
+            timeout: 25000
         });
 
         const pdfBuffer = await page.pdf({
             format: "A4",
             printBackground: true,
             margin: {
-                top: "20mm",
-                bottom: "20mm",
+                top: "15mm",
+                bottom: "15mm",
                 left: "15mm",
                 right: "15mm"
             }
         });
 
-        await page.close();
         return pdfBuffer;
 
-    } catch (err) {
-        await page.close();
-        throw err;
+    } finally {
+        try {
+            if (page && !page.isClosed()) {
+                await page.close();
+            }
+        } catch (closeErr) {
+            console.warn("Failed to close puppeteer page:", closeErr.message);
+        }
     }
 }
 
-async function generateResumePdf({ resume, selfDescription, jobDescription }) {
+async function generateResumePdf({ resume = "", selfDescription = "", jobDescription = "", title = "Tailored Resume" }) {
     const resumePdfSchema = z.object({
-        html: z.string()
+        html: z.string().describe("Complete ATS-friendly HTML document with inline CSS styling for the resume")
     });
 
-    const prompt = `
-Generate a professional resume tailored to the job.
+    const candidateProfile = [
+        resume ? `RESUME CONTENT:\n${resume}` : "",
+        selfDescription ? `ADDITIONAL PROFILE / SELF-DESCRIPTION:\n${selfDescription}` : ""
+    ].filter(Boolean).join("\n\n") || "Candidate profile";
 
-Resume: ${resume}
-Self Description: ${selfDescription}
-Job Description: ${jobDescription}
+    const prompt = `You are an expert executive resume writer and ATS specialist.
+Generate a tailored, ATS-friendly, professional resume in HTML format based on the candidate's profile and target job description.
 
-STRICT RULES:
-- Return ONLY JSON
-- No markdown
-- No explanation
-- No backticks
-- No scripts
-- Inline CSS only
+TARGET JOB DESCRIPTION:
+${jobDescription}
 
-Format:
-{
-  "html": "<valid ATS-friendly HTML>"
-}
+CANDIDATE PROFILE:
+${candidateProfile}
+
+STRICT INSTRUCTIONS:
+1. Return a valid JSON object matching the schema: {"html": "..."}.
+2. The HTML must have embedded <style> with clean, elegant ATS formatting:
+   - Page margins: A4 size
+   - Typography: Clean sans-serif (Arial, Helvetica, sans-serif)
+   - Professional sections: Contact info header, Professional Summary, Core Competencies & Skills, Experience (with bullet points highlighting achievements), Projects, Education.
+   - Elegant, clean colors: dark navy header (#0f172a), subtle section dividers (#cbd5e1), crisp dark body text (#334155).
+3. Do NOT include external script tags or iframes.
 `;
 
-    let responseText;
+    let htmlToRender = "";
 
     try {
         const response = await ai.models.generateContent({
@@ -173,31 +277,27 @@ Format:
             config: {
                 responseMimeType: "application/json",
                 responseSchema: zodToJsonSchema(resumePdfSchema),
-                temperature: 0.3
+                temperature: 0.2
             }
         });
 
-        responseText = response.text;
+        const rawText = response.text || "";
+        const extractedHtml = extractResumeHtml(rawText);
 
+        if (extractedHtml) {
+            htmlToRender = sanitizeHtml(extractedHtml);
+        }
     } catch (err) {
-        throw new Error("AI request failed: " + err.message);
+        console.warn("[PDF] AI generation warning, falling back to structured template:", err.message);
     }
 
-    let jsonContent;
-
-    try {
-        jsonContent = extractJson(responseText);
-    } catch (err) {
-        console.error("Raw AI output:", responseText);
-        throw new Error("Failed to parse AI response");
+    if (!htmlToRender) {
+        htmlToRender = buildFallbackResumeHtml({ resume, selfDescription, jobDescription, title });
+    } else {
+        htmlToRender = ensureCompleteHtmlDocument(htmlToRender, title);
     }
 
-    if (!jsonContent?.html) {
-        throw new Error("Invalid response: missing html");
-    }
-
-    const safeHtml = sanitizeHtml(jsonContent.html);
-
-    return await generatePdfFromHtml(safeHtml);
+    return await generatePdfFromHtml(htmlToRender);
 }
+
 module.exports = { generateInterviewReport, generateResumePdf }
